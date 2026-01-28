@@ -44,9 +44,19 @@ exports.ExposeStore = () => {
     };
 
     window.Store = Object.assign({}, window.require('WAWebCollections'));
-    window.Store.AppState = window.require('WAWebSocketModel').Socket;
+    try {
+        const socketModel = window.require('WAWebSocketModel');
+        window.Store.AppState = socketModel?.Socket ?? socketModel?.AppState ?? socketModel?.default?.Socket;
+    } catch {
+        // Module doesn't exist or structure changed
+    }
     window.Store.BlockContact = window.require('WAWebBlockContactAction');
-    window.Store.Conn = window.require('WAWebConnModel').Conn;
+    try {
+        const connModel = window.require('WAWebConnModel');
+        window.Store.Conn = connModel?.Conn ?? connModel?.default?.Conn ?? connModel?.default;
+    } catch {
+        // Module doesn't exist or structure changed
+    }
     window.Store.Cmd = window.require('WAWebCmd').Cmd;
     window.Store.DownloadManager = window.require('WAWebDownloadManager').downloadManager;
     window.Store.GroupQueryAndUpdate = window.require('WAWebGroupQueryJob').queryAndUpdateGroupMetadataById;
@@ -207,7 +217,72 @@ exports.ExposeStore = () => {
         ...window.require('WAWebStatusGatingUtils')
     };
 
-    if (!window.Store.Chat._find || !window.Store.Chat.findImpl) {
+    // Fallback loading for critical Store modules that may be missing due to A/B testing
+    if (!window.Store.GroupMetadata) {
+        try {
+            const groupMetadataModule = window.require('WAWebGroupMetadataCollection');
+            window.Store.GroupMetadata = groupMetadataModule?.GroupMetadataCollection ?? groupMetadataModule?.default;
+        } catch {
+            // Module doesn't exist
+        }
+    }
+
+    if (!window.Store.Msg) {
+        try {
+            const msgModule = window.require('WAWebMsgCollection');
+            window.Store.Msg = msgModule?.MsgCollection ?? msgModule?.default;
+        } catch {
+            try {
+                const msgModule = window.require('WAWebMessageCollection');
+                window.Store.Msg = msgModule?.MessageCollection ?? msgModule?.default;
+            } catch {
+                // Module doesn't exist
+            }
+        }
+    }
+
+    if (!window.Store.Chat) {
+        try {
+            const chatModule = window.require('WAWebChatCollection');
+            window.Store.Chat = chatModule?.ChatCollection ?? chatModule?.default;
+        } catch {
+            // Module doesn't exist
+        }
+    }
+
+    if (!window.Store.Call) {
+        try {
+            const callModule = window.require('WAWebCallCollection');
+            window.Store.Call = callModule?.CallCollection ?? callModule?.default;
+        } catch {
+            // Module doesn't exist
+        }
+    }
+
+    if (!window.Store.AppState) {
+        try {
+            const appStateModule = window.require('WAWebAppStateModel');
+            window.Store.AppState = appStateModule?.AppState ?? appStateModule?.default;
+        } catch {
+            try {
+                const appStateModule = window.require('WAWebSocketAppState');
+                window.Store.AppState = appStateModule?.AppState ?? appStateModule?.default;
+            } catch {
+                // Module doesn't exist
+            }
+        }
+    }
+
+    if (!window.Store.Conn) {
+        try {
+            const connModule = window.require('WAWebConnCollection');
+            window.Store.Conn = connModule?.Conn ?? connModule?.default;
+        } catch {
+            // Module doesn't exist
+        }
+    }
+
+    if (window.Store.Chat && (!window.Store.Chat._find || !window.Store.Chat.findImpl)) {
         window.Store.Chat._find = e => {
             const target = window.Store.Chat.get(e);
             return target ? Promise.resolve(target) : Promise.resolve({

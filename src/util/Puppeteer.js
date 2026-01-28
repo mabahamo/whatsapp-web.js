@@ -17,7 +17,24 @@ async function exposeFunctionIfAbsent(page, name, fn) {
     if (exist) {
         return;
     }
-    await page.exposeFunction(name, fn);
+    try {
+        await page.exposeFunction(name, fn);
+    } catch (error) {
+        // Handle CDP binding conflicts after page navigation
+        if (error.message && error.message.includes('already exists')) {
+            try {
+                // Try to remove and re-expose (requires Puppeteer 20.6+)
+                if (typeof page.removeExposedFunction === 'function') {
+                    await page.removeExposedFunction(name);
+                    await page.exposeFunction(name, fn);
+                }
+            } catch {
+                // Older Puppeteer version or removal failed, function should still work
+            }
+        } else {
+            throw error;
+        }
+    }
 }
 
 module.exports = {exposeFunctionIfAbsent};
